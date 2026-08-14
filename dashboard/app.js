@@ -109,13 +109,22 @@ function renderAyalonChart() {
     entries.slice(0, MAX_PLOTTED).forEach(([id]) => state.selected.add(id));
   }
 
+  renderLegend(entries);
+  drawChart(entries);
+}
+
+function renderLegend(entries) {
   const legend = document.getElementById('legend');
+  // A track is only disabled if it's unselected AND the cap is already full --
+  // recomputed on every render so freeing a slot (unchecking one) immediately
+  // re-enables the rest, instead of leaving stale disabled attributes around.
+  const atCap = state.selected.size >= MAX_PLOTTED;
   legend.innerHTML = entries.map(([id, rows], i) => {
     const color = SERIES_COLORS[i % SERIES_COLORS.length];
-    const checked = state.selected.has(id) ? 'checked' : '';
-    const disabled = i >= MAX_PLOTTED && !state.selected.has(id) ? 'disabled' : '';
+    const isSelected = state.selected.has(id);
+    const disabled = atCap && !isSelected ? 'disabled' : '';
     return `<label>
-      <input type="checkbox" data-id="${id}" data-idx="${i}" ${checked} ${disabled}>
+      <input type="checkbox" data-id="${id}" ${isSelected ? 'checked' : ''} ${disabled}>
       <span class="swatch" style="background:${color}"></span>
       ${rows[0].fund_name}
     </label>`;
@@ -129,11 +138,10 @@ function renderAyalonChart() {
       } else {
         state.selected.delete(id);
       }
+      renderLegend(entries);
       drawChart(entries);
     });
   });
-
-  drawChart(entries);
 }
 
 function drawChart(entries) {
