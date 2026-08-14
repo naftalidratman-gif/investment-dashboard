@@ -47,6 +47,8 @@ jobs:
       # Actions safety feature, not a bug. So this job deploys to Pages
       # itself rather than relying on deploy-pages.yml to pick it up.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
