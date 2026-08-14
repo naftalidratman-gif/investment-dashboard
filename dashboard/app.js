@@ -115,16 +115,15 @@ function renderAyalonChart() {
 
 function renderLegend(entries) {
   const legend = document.getElementById('legend');
-  // A track is only disabled if it's unselected AND the cap is already full --
-  // recomputed on every render so freeing a slot (unchecking one) immediately
-  // re-enables the rest, instead of leaving stale disabled attributes around.
-  const atCap = state.selected.size >= MAX_PLOTTED;
+  // Every checkbox is always clickable -- no disabled state to get stuck on.
+  // Checking a track past the MAX_PLOTTED cap just bumps the oldest-selected
+  // one off automatically (state.selected is a Set, so insertion order is
+  // preserved and .values().next().value is always the oldest).
   legend.innerHTML = entries.map(([id, rows], i) => {
     const color = SERIES_COLORS[i % SERIES_COLORS.length];
     const isSelected = state.selected.has(id);
-    const disabled = atCap && !isSelected ? 'disabled' : '';
     return `<label>
-      <input type="checkbox" data-id="${id}" ${isSelected ? 'checked' : ''} ${disabled}>
+      <input type="checkbox" data-id="${id}" ${isSelected ? 'checked' : ''}>
       <span class="swatch" style="background:${color}"></span>
       ${rows[0].fund_name}
     </label>`;
@@ -133,7 +132,9 @@ function renderLegend(entries) {
     cb.addEventListener('change', () => {
       const id = Number(cb.dataset.id);
       if (cb.checked) {
-        if (state.selected.size >= MAX_PLOTTED) { cb.checked = false; return; }
+        if (state.selected.size >= MAX_PLOTTED) {
+          state.selected.delete(state.selected.values().next().value);
+        }
         state.selected.add(id);
       } else {
         state.selected.delete(id);
