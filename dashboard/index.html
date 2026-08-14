@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Investment Dashboard</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page:           #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --good:           #006300;
+
+    --series-1: #2a78d6; /* blue */
+    --series-2: #eb6834; /* orange */
+    --series-3: #1baf7a; /* aqua */
+    --series-4: #eda100; /* yellow */
+    --series-5: #e87ba4; /* magenta */
+    --series-6: #008300; /* green */
+    --series-7: #4a3aa7; /* violet */
+    --series-8: #e34948; /* red */
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page:           #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --good:           #0ca30c;
+
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --series-3: #199e70;
+      --series-4: #c98500;
+      --series-5: #d55181;
+      --series-6: #008300;
+      --series-7: #9085e9;
+      --series-8: #e66767;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page:           #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --gridline:       #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --good:           #0ca30c;
+
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-6: #008300;
+    --series-7: #9085e9;
+    --series-8: #e66767;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .subtitle { color: var(--text-secondary); font-size: 14px; margin: 0 0 28px; }
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 4px; }
+  .card .desc { color: var(--text-secondary); font-size: 13px; margin: 0 0 16px; }
+  .stat-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+  .stat-tile {
+    flex: 1 1 180px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .stat-tile .label { font-size: 12px; color: var(--text-muted); }
+  .stat-tile .value { font-size: 24px; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 16px; }
+  .legend label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); cursor: pointer; }
+  .swatch { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+
+  svg.chart { width: 100%; height: 320px; overflow: visible; }
+  .gridline { stroke: var(--gridline); stroke-width: 1; }
+  .baseline { stroke: var(--baseline); stroke-width: 1; }
+  .axis-label { fill: var(--text-muted); font-size: 11px; }
+  .line-path { fill: none; stroke-width: 2; }
+  .point { r: 3.5; }
+  .tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    display: none;
+    white-space: nowrap;
+    z-index: 10;
+  }
+  .tooltip .t-date { color: var(--text-muted); margin-bottom: 4px; }
+  .tooltip .t-row { display: flex; align-items: center; gap: 6px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    text-align: right;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 12px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--gridline);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  thead th:first-child, tbody td:first-child { text-align: right; }
+  tbody td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--gridline);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+  }
+  tbody tr:hover { background: var(--page); }
+  .pos { color: var(--good); }
+  .neg { color: var(--series-8); }
+  .table-scroll { overflow-x: auto; }
+  .empty-state {
+    color: var(--text-secondary);
+    font-size: 13px;
+    padding: 24px;
+    text-align: center;
+    border: 1px dashed var(--baseline);
+    border-radius: 8px;
+  }
+  .empty-state code {
+    background: var(--page);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <div class="wrap">
+    <h1>Investment Dashboard</h1>
+    <p class="subtitle" id="subtitle">Loading&hellip;</p>
+
+    <div class="stat-row" id="statRow"></div>
+
+    <div class="card">
+      <h2>Ayalon Bituach Menahelim &mdash; track yields</h2>
+      <p class="desc">Indexed value (start = 100) computed by compounding each track's official monthly reported yield. Source: Israel Capital Market Authority open dataset (data.gov.il, "ביטוח-נט"), reported monthly.</p>
+      <div class="legend" id="legend"></div>
+      <div style="position:relative">
+        <svg class="chart" id="chart" viewBox="0 0 1000 320" preserveAspectRatio="none"></svg>
+        <div class="tooltip" id="tooltip"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>All Ayalon tracks &mdash; latest reported month</h2>
+      <p class="desc">Click a column header to sort.</p>
+      <div class="table-scroll">
+        <table id="ayalonTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>More Investment House &mdash; fund NAVs</h2>
+      <p class="desc" id="moreDesc"></p>
+      <div id="moreContent"></div>
+    </div>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

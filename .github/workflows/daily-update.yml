@@ -1,0 +1,56 @@
+name: Investment dashboard daily update
+
+on:
+  schedule:
+    # 04:00 UTC daily (07:00 Israel time in summer, 06:00 in winter).
+    # Ayalon data only actually changes monthly; More Investment is
+    # genuinely daily.
+    - cron: "0 4 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run scrapers
+        working-directory: scraper
+        run: python run_daily.py
+
+      - name: Commit updated data
+        run: |
+          git config user.name "investment-dashboard-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/dashboard_export.json data/investments.db
+          if git diff --cached --quiet; then
+            echo "No data changes."
+          else
+            git commit -m "Daily investment data update"
+            git push
+          fi
+
+      # A commit pushed with the default GITHUB_TOKEN (the step above) does
+      # NOT trigger other workflows' `on: push` events -- that's a GitHub
+      # Actions safety feature, not a bug. So this job deploys to Pages
+      # itself rather than relying on deploy-pages.yml to pick it up.
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
