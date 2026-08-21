@@ -39,6 +39,13 @@ jobs:
             echo "No data changes."
           else
             git commit -m "Daily investment data update"
+            # This job only ever touches these two generated files, so if the
+            # remote moved on since checkout (a concurrent run, a manual
+            # rerun), take the remote's history and let our freshly-computed
+            # data win any conflict on these two files rather than failing
+            # the push outright.
+            git fetch origin main
+            git merge -X ours origin/main --no-edit
             git push
           fi
 
