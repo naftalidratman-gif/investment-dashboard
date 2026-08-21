@@ -19,16 +19,24 @@ Field mapping below (a-i) was verified by matching JSON values against the
 rendered HTML table for the same fund IDs. Columns beyond 'i' exist in the
 feed (j, k, l, n, o, p, q, r, s) but their meaning wasn't confidently
 verified against the UI, so they're intentionally not surfaced here.
+
+The JSON file's URL contains a GUID that bizportal rotates periodically
+(confirmed 2026-08-21: the GUID captured on 2026-08-14 had gone 404,
+breaking the daily job for several days). So the URL is no longer
+hardcoded -- every run re-fetches the mutual-funds page and extracts
+whatever GUID is current from its $.getJSON(...) call.
 """
 from __future__ import annotations
 
 import json
+import re
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 
-FEED_URL = "https://www.bizportal.co.il/json/mutualfunds/92769366-2684-49c7-b0bc-a0f760099aac.json"
+PAGE_URL = "https://www.bizportal.co.il/mutualfunds"
+FEED_URL_PATTERN = re.compile(r"json/mutualfunds/[a-f0-9-]+\.json")
 MORE_FUND_MANAGER = "מור"
 USER_AGENT = "Mozilla/5.0 (investment-dashboard scraper; contact: naftali.dratman@gmail.com)"
 
@@ -47,8 +55,22 @@ class FundObservation:
     fetched_at: str
 
 
+def _discover_feed_url() -> str:
+    req = urllib.request.Request(PAGE_URL, headers={"User-Agent": USER_AGENT})
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        html = resp.read().decode("utf-8", errors="ignore")
+    match = FEED_URL_PATTERN.search(html)
+    if not match:
+        raise RuntimeError(
+            f"Could not find the mutual-funds JSON feed URL in {PAGE_URL} -- "
+            "bizportal likely changed how the page loads its data."
+        )
+    return f"https://www.bizportal.co.il/{match.group(0)}"
+
+
 def fetch_more_funds() -> list[FundObservation]:
-    req = urllib.request.Request(FEED_URL, headers={"User-Agent": USER_AGENT})
+    feed_url = _discover_feed_url()
+    req = urllib.request.Request(feed_url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(req, timeout=30) as resp:
         last_modified = resp.headers.get("Last-Modified")
         records = json.load(resp)
